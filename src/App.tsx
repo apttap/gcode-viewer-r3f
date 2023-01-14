@@ -22,6 +22,8 @@ import "./App.css";
 import vertex from "./shaders/shader.vert";
 import fragment from "./shaders/shader.frag";
 
+import {parseGcode} from './utils/parseGcode.ts';
+
 const ColorShiftMaterial = shaderMaterial(
   {
     time: 0,
@@ -45,12 +47,16 @@ declare interface R3FMeshObj {}
 const R3F: FC<R3FMeshObj> = (props) => {
   const meshRef: MutableRefObject<Mesh | null> = useRef(null);
   const [hovered, setHover] = useState(false);
-  const { scale } = useSpring({ scale: hovered ? 1.1 : 0.75, config: config.wobbly });
+  const { scale } = useSpring({
+    scale: hovered ? 1.1 : 0.75,
+    config: config.wobbly,
+  });
   const { camera } = useThree();
 
-  useEffect(()=>{
+  useEffect(() => {
     camera.position.z = 2.0;
-  });
+
+  }, []);
 
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -80,6 +86,21 @@ const R3F: FC<R3FMeshObj> = (props) => {
 function App() {
   const [count, setCount] = useState(0);
 
+  const [thumbnail, setThumbnails] = useState({sm: undefined, lg: undefined});
+
+  useEffect(()=>{
+    fetch('./Benchy.gcode')
+    .then(res => res.text())
+    .then(text => {
+      // text is a string
+      let gcode = parseGcode(text);
+      setThumbnails({sm: gcode.thumbnails.sm, lg: gcode.thumbnails.lg});
+    })
+    .catch(err => {
+      console.log(err);
+    });
+  }, []);
+
   return (
     <div className="App">
       <div style={{ width: "100%", height: "50vh" }}>
@@ -88,14 +109,14 @@ function App() {
           <R3F />
         </Canvas>
       </div>
-      <h1>three + vite</h1>
+      <h1>gcode viewer</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+        {thumbnail.lg && (
+          <div><img src={`data:image/png;base64, ${thumbnail.lg}`}/></div>
+        )}
+        {thumbnail.sm && (
+          <div><img src={`data:image/png;base64, ${thumbnail.sm}`}/></div>
+        )}
       </div>
     </div>
   );
