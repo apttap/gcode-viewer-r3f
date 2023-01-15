@@ -1,10 +1,17 @@
 declare type GcodeObj = {
   thumbnails: object;
-  layers: string[][];
+  layers: object[][];
+};
+
+declare type MotionParams = {
+  type: string | undefined;
+  x: number | undefined;
+  y: number | undefined;
+  z: number | undefined;
+  e: number | undefined;
 };
 
 export function parseGcode(gcode: String) {
-
   let thumbnailSm = gcode.substring(
     gcode.indexOf("thumbnail begin 48x48"),
     gcode.indexOf("thumbnail end")
@@ -30,7 +37,7 @@ export function parseGcode(gcode: String) {
 
   function getMotionGcode(str) {
     const lines = str.split("\n");
-    let layers: string[][] = [[]];
+    let layers: object[][] = [[]];
     let layer = 0;
 
     lines.forEach((line: string, n: number) => {
@@ -44,17 +51,48 @@ export function parseGcode(gcode: String) {
 
       let motionType = line.substring(0, 4).toUpperCase();
 
+      let splitLine = line.split(" ");
+
+      let motionParams: MotionParams = {
+        type: "motion",
+        x: undefined,
+        y: undefined,
+        z: undefined,
+        e: undefined,
+      };
+
+      splitLine.forEach((command: String, n: number) => {
+        let com_type = command.substring(0, 1);
+
+        switch (com_type) {
+          case "X":
+            motionParams.x = parseFloat(command.substring(1));
+            break;
+          case "Y":
+            motionParams.y = parseFloat(command.substring(1));
+            break;
+          case "Z":
+            motionParams.z = undefined;
+            break;
+          case "E":
+            motionParams.e = parseFloat(command.substring(1));
+            motionParams.type = "extrusion";
+          default:
+            break;
+        }
+      });
+
       switch (motionType) {
         case "G1 Z":
           // z adjust / layer change
-          layers[layer].push(line);
+          layers[layer].push(motionParams);
           ++layer;
-          let newLayer: string[] = [];
+          let newLayer: object[] = [];
           layers.push(newLayer);
           break;
         case "G1 X":
-          layers[layer].push(line);
-		  break;
+          layers[layer].push(motionParams);
+          break;
         default:
           break;
       }
